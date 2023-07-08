@@ -1,0 +1,134 @@
+#include <iostream>
+#pragma warning(disable:4996);
+#include <cstring>
+
+#define MAX_USERNAME_LENGTH 20
+#define MAX_PASSWORD_LENGTH 20
+#define DATABASE_FILE "database.txt"
+
+using namespace std;
+
+
+typedef struct {
+    char username[MAX_USERNAME_LENGTH];
+    char password[MAX_PASSWORD_LENGTH];
+} User;
+
+User* database = nullptr;
+int numUsers = 0;
+
+int authenticate(User* user) {
+    for (int i = 0; i < numUsers; i++) {
+     
+        if (strcmp(user->username, database[i].username) == 0 && strcmp(user->password, database[i].password) == 0) {
+            return 1; // Авторизация успешна
+        }
+    }
+    return 0; 
+}
+
+int registerUser(User* user) {
+
+    for (int i = 0; i < numUsers; i++) {
+        if (strcmp(user->username, database[i].username) == 0) {
+            return 0; 
+        }
+    }
+
+    // Увеличиваем размер базы данных
+    database = (User*)realloc(database, (numUsers + 1) * sizeof(User));
+    if (database == nullptr) {
+        cout << "Ошибка при выделении памяти." << endl;
+        return 0;
+    }
+
+
+    strcpy(database[numUsers].username, user->username);
+    strcpy(database[numUsers].password, user->password);
+    numUsers++;
+
+    return 1; 
+}
+
+
+void saveDatabaseToFile() {
+    FILE* file = fopen(DATABASE_FILE, "w");
+    if (file == nullptr) {
+        cout << "Ошибка при открытии файла." << endl;
+        return;
+    }
+
+    for (int i = 0; i < numUsers; i++) {
+        fprintf(file, "%s %s\n", database[i].username, database[i].password);
+    }
+
+    fclose(file);
+}
+
+
+void loadDatabaseFromFile() {
+    FILE* file = fopen(DATABASE_FILE, "r");
+    if (file == nullptr) {
+        cout << "Ошибка при открытии файла." << endl;
+        return;
+    }
+
+    if (database != nullptr) {
+        free(database);
+        database = nullptr;
+        numUsers = 0;
+    }
+
+    char username[MAX_USERNAME_LENGTH];
+    char password[MAX_PASSWORD_LENGTH];
+    while (fscanf(file, "%s %s", username, password) == 2) {
+        User user;
+        strcpy(user.username, username);
+        strcpy(user.password, password);
+        registerUser(&user);
+    }
+
+    fclose(file);
+}
+
+int main() 
+{
+    setlocale(0, "");
+    loadDatabaseFromFile(); 
+
+    User user;
+
+    cout << "Введите имя пользователя: ";
+    cin >> user.username;
+
+    cout << "Введите пароль: ";
+    cin >> user.password;
+
+    if (authenticate(&user)) {
+        cout << "Авторизация успешна. Добро пожаловать, " << user.username << "!" << endl;
+    }
+    else {
+        cout << "Ошибка авторизации. Проверьте имя пользователя и пароль." << endl;
+
+        char choice;
+        cout << "Хотите зарегистрироваться? (y/n): ";
+        cin >> choice;
+
+        if (choice == 'y' || choice == 'Y') {
+            if (registerUser(&user)) {
+                cout << "Регистрация успешна. Добро пожаловать, " << user.username << "!" << endl;
+                saveDatabaseToFile(); // Сохраняем базу данных в файл
+            }
+            else {
+                cout << "Ошибка регистрации. Невозможно зарегистрировать нового пользователя." << endl;
+            }
+        }
+    }
+
+
+    if (database != nullptr) {
+        free(database);
+    }
+
+    return 0;
+}
